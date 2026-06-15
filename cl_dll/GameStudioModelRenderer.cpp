@@ -444,8 +444,11 @@ void CRagdollManager::PushFromPlayers()
 	cl_entity_t *local = gEngfuncs.GetLocalPlayer();
 	if (!local) return;
 
-	for (auto &[ragIdx, rd] : m_ragdolls)
+	for (auto it = m_ragdolls.begin(); it != m_ragdolls.end(); ++it)
 	{
+		int ragIdx    = it->first;
+		Ragdoll &rd   = it->second;
+
 		if (!rd.active || !rd.parts[RB_PELVIS].body) continue;
 
 		btVector3 pelvisPos = rd.parts[RB_PELVIS].body->getWorldTransform().getOrigin();
