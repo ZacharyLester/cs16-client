@@ -49,6 +49,39 @@
 #define ANIM_FIRST_EMOTION_SEQUENCE 198
 #define ANIM_LAST_EMOTION_SEQUENCE 207
 
+CGameStudioModelRenderer g_StudioRenderer;
+
+int g_rseq;
+int g_gaitseq;
+vec3_t g_clorg;
+vec3_t g_clang;
+
+void CounterStrike_GetSequence(int *seq, int *gaitseq)
+{
+	*seq = g_rseq;
+	*gaitseq = g_gaitseq;
+}
+
+void CounterStrike_GetOrientation(float *o, float *a)
+{
+	VectorCopy(g_clorg, o);
+	VectorCopy(g_clang, a);
+}
+
+float g_flStartScaleTime;
+int iPrevRenderState;
+int iRenderStateChanged;
+
+engine_studio_api_t IEngineStudio;
+
+static client_anim_state_t g_state;
+static client_anim_state_t g_clientstate;
+
+CGameStudioModelRenderer::CGameStudioModelRenderer(void)
+{
+	m_bLocal = false;
+}
+
 //ragdoll stuff start
 #include <cstring>
 #include <cmath>
@@ -882,39 +915,6 @@ bool CRagdollManager::HasRagdoll(int entityIndex) const
 	return it != m_ragdolls.end() && it->second.active;
 }
 //ragdoll stuff end
-
-CGameStudioModelRenderer g_StudioRenderer;
-
-int g_rseq;
-int g_gaitseq;
-vec3_t g_clorg;
-vec3_t g_clang;
-
-void CounterStrike_GetSequence(int *seq, int *gaitseq)
-{
-	*seq = g_rseq;
-	*gaitseq = g_gaitseq;
-}
-
-void CounterStrike_GetOrientation(float *o, float *a)
-{
-	VectorCopy(g_clorg, o);
-	VectorCopy(g_clang, a);
-}
-
-float g_flStartScaleTime;
-int iPrevRenderState;
-int iRenderStateChanged;
-
-engine_studio_api_t IEngineStudio;
-
-static client_anim_state_t g_state;
-static client_anim_state_t g_clientstate;
-
-CGameStudioModelRenderer::CGameStudioModelRenderer(void)
-{
-	m_bLocal = false;
-}
 
 mstudioanim_t *CGameStudioModelRenderer::LookupAnimation(mstudioseqdesc_t *pseqdesc, int index)
 {
