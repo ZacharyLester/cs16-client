@@ -91,7 +91,6 @@ void CRagdollWorld::NotifyMapChanged()
 	m_currentMapName[0] = '\0';
 
 	CRagdollManager::Get().RemoveAllRagdolls();
-	EnsureWorldCollision();
 }
 
 void CRagdollWorld::Shutdown()

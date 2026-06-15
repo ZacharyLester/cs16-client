@@ -263,8 +263,8 @@ int DLLEXPORT HUD_VidInit( void )
 	}
 
 	//ragdoll stuff 
-	CRagdollWorld::Get().NotifyMapChanged();
 	CRagdollWorld::Get().Init();
+	CRagdollWorld::Get().NotifyMapChanged();
 
 	return 1;
 }
@@ -291,6 +291,10 @@ void DLLEXPORT HUD_Init( void )
 		gEngfuncs.Con_Printf( "Warning: Menu initialization failed\n" );
 	}
 	//Scheme_Init();
+
+	//ragdoll stuff 
+	CRagdollWorld::Get().Init();
+	CRagdollWorld::Get().NotifyMapChanged();
 }
 
 
