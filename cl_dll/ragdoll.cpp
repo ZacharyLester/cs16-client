@@ -25,6 +25,8 @@
 
 #include "ragdoll.h"
 
+engine_studio_api_t IEngineStudio;
+
 //ragdoll stuff start
 #include <cstring>
 #include <cmath>
