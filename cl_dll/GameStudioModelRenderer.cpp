@@ -168,7 +168,9 @@ void CRagdollWorld::Step(float dt)
 		return;
 
 	m_world->stepSimulation(dt, 4, 1.0f / 120.0f);
-}#ifndef SURF_PLANEBACK
+}
+
+#ifndef SURF_PLANEBACK
 #define SURF_PLANEBACK		0x02
 #endif
 #ifndef SURF_DRAWSKY
