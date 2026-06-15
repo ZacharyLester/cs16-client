@@ -170,6 +170,14 @@ void CRagdollWorld::Step(float dt)
 	m_world->stepSimulation(dt, 4, 1.0f / 120.0f);
 }
 
+#ifndef SURF_DRAWSKY
+#define SURF_PLANEBACK		0x02
+#define SURF_DRAWSKY		0x04
+#define SURF_DRAWTURB		0x10
+#define SURF_DRAWBACKGROUND	0x40
+#define SURF_UNDERWATER		0x80
+#endif
+
 void CRagdollWorld::EnsureWorldCollision()
 {
 	if (!m_world) return;
@@ -194,33 +202,49 @@ void CRagdollWorld::EnsureWorldCollision()
 
 	strncpy(m_currentMapName, mapName, sizeof(m_currentMapName) - 1);
 
-	m_worldMesh = new btTriangleMesh(/*use32bitIndices=*/true);
+	m_worldMesh = new btTriangleMesh(true);
 
 	int triCount = 0;
+
+	gEngfuncs.pTriAPI->Begin(TRI_TRIANGLES);
+
+	gEngfuncs.pTriAPI->End();
+
+	hull_t *hull = &worldModel->hulls[0];
 
 	for (int i = 0; i < worldModel->numsurfaces; i++)
 	{
 		msurface_t *surf = worldModel->surfaces + i;
 
-		if (surf->flags & (SURF_DRAWTURB | SURF_DRAWSKY | SURF_UNDERWATER))
+		if (surf->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
 			continue;
 
-		glpoly_t *poly = surf->polys;
-		if (!poly)
+		int firstedge = surf->firstedge;
+		int numedges  = surf->numedges;
+
+		if (numedges < 3)
 			continue;
 
-		float *v0 = poly->verts[0];
-
-		for (int j = 1; j < poly->numverts - 1; j++)
+		auto GetSurfVert = [&](int edge_index) -> float*
 		{
-			float *v1 = poly->verts[j];
-			float *v2 = poly->verts[j + 1];
+			int e = worldModel->surfedges[firstedge + edge_index];
+			medge_t *edge = &worldModel->edges[e >= 0 ? e : -e];
+			int vertIndex = (e >= 0) ? edge->v[0] : edge->v[1];
+			return worldModel->vertexes[vertIndex].position;
+		};
+
+		float *v0 = GetSurfVert(0);
+
+		for (int j = 1; j < numedges - 1; j++)
+		{
+			float *v1 = GetSurfVert(j);
+			float *v2 = GetSurfVert(j + 1);
 
 			btVector3 p0(v0[0] * GU_TO_M, v0[1] * GU_TO_M, v0[2] * GU_TO_M);
 			btVector3 p1(v1[0] * GU_TO_M, v1[1] * GU_TO_M, v1[2] * GU_TO_M);
 			btVector3 p2(v2[0] * GU_TO_M, v2[1] * GU_TO_M, v2[2] * GU_TO_M);
 
-			m_worldMesh->addTriangle(p0, p1, p2, /*removeDuplicateVertices=*/false);
+			m_worldMesh->addTriangle(p0, p1, p2, false);
 			triCount++;
 		}
 	}
@@ -238,12 +262,10 @@ void CRagdollWorld::EnsureWorldCollision()
 		return;
 	}
 
-	//btBvhTriangleMeshShape builds an AABB tree for fast ray/shape queries.
-	//trueflag tells it to build the BVH immediately.
-	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, /*buildBvh=*/true);
+	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, true);
 
 	btRigidBody::btRigidBodyConstructionInfo ci(
-		0,//mass 0 = static
+		0,
 		new btDefaultMotionState(),
 		m_worldShape
 	);
@@ -251,13 +273,11 @@ void CRagdollWorld::EnsureWorldCollision()
 	ci.m_restitution = 0.0f;
 
 	m_worldBody = new btRigidBody(ci);
-	//CF_STATIC_OBJECT tells the broadphase this never moves
 	m_worldBody->setCollisionFlags(
 		m_worldBody->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT
 	);
 
 	m_world->addRigidBody(m_worldBody, 1, 2);
-	//gEngfuncs.Con_Printf("cl ragdoll: bsp collision built (%d triangles)\n", triCount);
 }
 
 
