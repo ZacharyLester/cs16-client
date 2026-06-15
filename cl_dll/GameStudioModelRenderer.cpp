@@ -118,21 +118,20 @@ CRagdollWorld &CRagdollWorld::Get()
 
 void CRagdollWorld::Init()
 {
-	if (m_world)
-		return;
+	if (m_world) return;
 
 	m_config     = new btDefaultCollisionConfiguration();
 	m_dispatcher = new btCollisionDispatcher(m_config);
 	m_broadphase = new btDbvtBroadphase();
 	m_solver     = new btSequentialImpulseConstraintSolver();
 	m_world      = new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_solver, m_config);
-
 	m_world->setGravity(btVector3(0, 0, -800.0f * GU_TO_M));
 
-	m_world->getSolverInfo().m_numIterations = 20;
-	m_world->getSolverInfo().m_erp = 0.8f;
-	m_world->getSolverInfo().m_erp2 = 0.8f;
-	m_world->getDispatchInfo().m_allowedCcdPenetration = 0.0001f;
+	m_world->getSolverInfo().m_numIterations       = 20;
+	m_world->getSolverInfo().m_erp                 = 0.8f;
+	m_world->getSolverInfo().m_erp2                = 0.8f;
+	m_world->getSolverInfo().m_splitImpulse        = true;
+	m_world->getSolverInfo().m_splitImpulsePenetrationThreshold = -0.002f;
 }
 
 void CRagdollWorld::NotifyMapChanged()
@@ -296,7 +295,7 @@ void CRagdollWorld::EnsureWorldCollision()
 	}
 
 	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, true);
-	m_worldShape->setMargin(0.5f * GU_TO_M);
+	m_worldShape->setMargin(0.01f);
 
 	btRigidBody::btRigidBodyConstructionInfo ci(
 		0,
@@ -603,7 +602,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 			desc.pboneoffset, halfH);
 
 		part.shape       = new btCapsuleShape(desc.radius * GU_TO_M, halfH * 2.0f);
-		part.shape->setMargin(0.1f * GU_TO_M);
+		part.shape->setMargin(0.01f)
 		part.motionState = new btDefaultMotionState(xform);
 
 		btVector3 inertia(0, 0, 0);
