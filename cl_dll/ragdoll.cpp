@@ -240,6 +240,9 @@ void CRagdollWorld::EnsureWorldCollision()
 	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, true);
 	m_worldShape->setMargin(0.01f);
 
+	gEngfuncs.Con_Printf("ragdoll BSP: %d surfaces -> %d triangles\n",
+		worldModel->numsurfaces, triCount);
+
 	btRigidBody::btRigidBodyConstructionInfo ci(
 		0,
 		new btDefaultMotionState(),
@@ -255,7 +258,6 @@ void CRagdollWorld::EnsureWorldCollision()
 
 	m_world->addRigidBody(m_worldBody, 1, 2);
 }
-
 
 CRagdollManager &CRagdollManager::Get()
 {
@@ -461,7 +463,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		return;
 
 	CRagdollWorld::Get().Init();
-	CRagdollWorld::Get().EnsureWorldCollision();
+	//CRagdollWorld::Get().EnsureWorldCollision();
 
 	btDiscreteDynamicsWorld *world = CRagdollWorld::Get().GetWorld();
 
