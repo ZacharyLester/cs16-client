@@ -40,6 +40,8 @@
 #include "camera.h"
 #include "eventscripts.h"
 
+#include "ragdoll.h"
+
 #define ANIM_WALK_SEQUENCE 3
 #define ANIM_JUMP_SEQUENCE 6
 #define ANIM_SWIM_1 8
@@ -83,8 +85,6 @@ CGameStudioModelRenderer::CGameStudioModelRenderer(void)
 }
 
 //ragdoll stuff start
-#include "BulletCollision/Gimpact/btGImpactShape.h"
-
 #include <cstring>
 #include <cmath>
 #include <algorithm>

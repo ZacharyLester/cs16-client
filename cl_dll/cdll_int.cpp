@@ -35,7 +35,7 @@
 #include "CMiniMem.h"
 #include "environment.h"
 
-#include "GameStudioModelRenderer.h"
+#include "ragdoll.h"
 
 #include "cl_util.h"
 
