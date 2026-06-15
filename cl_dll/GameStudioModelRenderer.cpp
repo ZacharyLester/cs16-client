@@ -83,6 +83,8 @@ CGameStudioModelRenderer::CGameStudioModelRenderer(void)
 }
 
 //ragdoll stuff start
+#include "BulletCollision/Gimpact/btGImpactShape.h"
+
 #include <cstring>
 #include <cmath>
 #include <algorithm>
@@ -126,6 +128,8 @@ void CRagdollWorld::Init()
 	m_world      = new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_solver, m_config);
 
 	m_world->setGravity(btVector3(0, 0, -800.0f * GU_TO_M));
+
+	btGImpactCollisionAlgorithm::registerAlgorithm(m_dispatcher);
 }
 
 void CRagdollWorld::NotifyMapChanged()
@@ -290,7 +294,9 @@ void CRagdollWorld::EnsureWorldCollision()
 		return;
 	}
 
-	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, true);
+	btGImpactMeshShape *gimpact = new btGImpactMeshShape(m_worldMesh);
+	gimpact->updateBound();
+	m_worldShape = gimpact;
 
 	btRigidBody::btRigidBodyConstructionInfo ci(
 		0,
