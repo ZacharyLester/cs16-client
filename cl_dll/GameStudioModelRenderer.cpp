@@ -170,11 +170,19 @@ void CRagdollWorld::Step(float dt)
 	m_world->stepSimulation(dt, 4, 1.0f / 120.0f);
 }
 
-#ifndef SURF_DRAWSKY
+#ifndef SURF_PLANEBACK
 #define SURF_PLANEBACK		0x02
+#endif
+#ifndef SURF_DRAWSKY
 #define SURF_DRAWSKY		0x04
+#endif
+#ifndef SURF_DRAWTURB
 #define SURF_DRAWTURB		0x10
+#endif
+#ifndef SURF_DRAWBACKGROUND
 #define SURF_DRAWBACKGROUND	0x40
+#endif
+#ifndef SURF_UNDERWATER
 #define SURF_UNDERWATER		0x80
 #endif
 
