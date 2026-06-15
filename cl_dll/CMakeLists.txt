@@ -45,6 +45,37 @@ list(APPEND CS_CLIENT_SRC ${CS_GAMSH_SRC})
 list(APPEND CS_CLIENT_SRC ${MINIUTL_SRC})
 list(APPEND CS_CLIENT_SRC ${CS_PARTICLEMAN_SRC})
 
+# ─── Bullet3 ──────────────────────────────────────────────────────────────────
+set(BULLET_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../bullet3/src")
+
+file(GLOB BULLET_LINEARMATH_SRC "${BULLET_SRC_DIR}/LinearMath/*.cpp")
+
+file(GLOB BULLET_COLLISION_SRC
+	"${BULLET_SRC_DIR}/BulletCollision/BroadphaseCollision/*.cpp"
+	"${BULLET_SRC_DIR}/BulletCollision/CollisionDispatch/*.cpp"
+	"${BULLET_SRC_DIR}/BulletCollision/CollisionShapes/*.cpp"
+	"${BULLET_SRC_DIR}/BulletCollision/Gimpact/*.cpp"
+	"${BULLET_SRC_DIR}/BulletCollision/NarrowPhaseCollision/*.cpp")
+
+file(GLOB BULLET_DYNAMICS_SRC
+	"${BULLET_SRC_DIR}/BulletDynamics/ConstraintSolver/*.cpp"
+	"${BULLET_SRC_DIR}/BulletDynamics/Dynamics/*.cpp"
+	"${BULLET_SRC_DIR}/BulletDynamics/Featherstone/*.cpp"
+	"${BULLET_SRC_DIR}/BulletDynamics/MLCPSolvers/*.cpp"
+	"${BULLET_SRC_DIR}/BulletDynamics/Vehicle/*.cpp")
+
+add_library(LinearMath STATIC ${BULLET_LINEARMATH_SRC})
+target_include_directories(LinearMath PUBLIC ${BULLET_SRC_DIR})
+
+add_library(BulletCollision STATIC ${BULLET_COLLISION_SRC})
+target_include_directories(BulletCollision PUBLIC ${BULLET_SRC_DIR})
+target_link_libraries(BulletCollision LinearMath)
+
+add_library(BulletDynamics STATIC ${BULLET_DYNAMICS_SRC})
+target_include_directories(BulletDynamics PUBLIC ${BULLET_SRC_DIR})
+target_link_libraries(BulletDynamics BulletCollision LinearMath)
+# ──────────────────────────────────────────────────────────────────────────────
+
 include_directories(
 	include
 	include/hud
@@ -62,7 +93,8 @@ include_directories(
 	../3rdparty/mainui_cpp/controls
 	../3rdparty/mainui_cpp/menus
 	../3rdparty/mainui_cpp/miniutl
-	particleman)
+	particleman
+	../bullet3/src)
 
 add_definitions(-DCLIENT_WEAPONS -DCLIENT_DLL -DSTDINT_H=<cstdint>)
 
@@ -74,6 +106,12 @@ else()
 endif()
 
 add_library(${CLIENT_LIB} SHARED ${CS_CLIENT_SRC})
+
+# Equivalent of LOCAL_WHOLE_STATIC_LIBRARIES — force-link all Bullet symbols
+target_link_libraries(${CLIENT_LIB}
+	-Wl,--whole-archive
+	BulletDynamics BulletCollision LinearMath
+	-Wl,--no-whole-archive)
 
 set_target_postfix(${CLIENT_LIB})
 
