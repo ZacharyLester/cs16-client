@@ -231,6 +231,13 @@ void CRagdollWorld::EnsureWorldCollision()
 		if (numedges < 3)
 			continue;
 
+		if (firstedge < 0 || firstedge >= worldModel->numsurfedges)
+			continue;
+		if (firstedge + numedges > worldModel->numsurfedges)
+			numedges = worldModel->numsurfedges - firstedge;
+		if (numedges < 3)
+			continue;
+
 		auto GetSurfVert = [&](int edge_index) -> float*
 		{
 			int e    = worldModel->surfedges[firstedge + edge_index];
