@@ -141,7 +141,7 @@ void CRagdollWorld::EnsureWorldCollision()
 {
 	if (!m_world) return;
 
-	model_t *worldModel = gEngfuncs.pfnGetModelByIndex(1);
+	model_t *worldModel = IEngineStudio.GetModelByIndex(1);
 	if (!worldModel || worldModel->type != mod_brush)
 		return;
 
