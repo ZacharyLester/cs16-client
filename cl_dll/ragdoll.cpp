@@ -461,6 +461,8 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		return;
 
 	CRagdollWorld::Get().Init();
+	CRagdollWorld::Get().EnsureWorldCollision();
+
 	btDiscreteDynamicsWorld *world = CRagdollWorld::Get().GetWorld();
 
 	RemoveRagdoll(entityIndex);
