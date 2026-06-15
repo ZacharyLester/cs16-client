@@ -1125,6 +1125,11 @@ public:
 	cvar_t *m_pShowHealth;
 	cvar_t *m_pShowMoney;
 
+	float m_ragdollHitOrigin[MAX_PLAYERS + 1][3];
+	int m_ragdollHitType[MAX_PLAYERS + 1];
+	float m_lastExplosionOrigin[3];
+	bool m_lastExplosionIsGrenade;
+
 private:
 	void SetGameType();
 

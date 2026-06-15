@@ -35,6 +35,8 @@
 #include "CMiniMem.h"
 #include "environment.h"
 
+#include "GameStudioModelRenderer.h"
+
 #include "cl_util.h"
 
 cl_enginefunc_t		gEngfuncs  = { };
@@ -139,6 +141,8 @@ void DLLEXPORT HUD_Shutdown( void )
 		miniMem->Reset();
 		miniMem->Shutdown();
 	}
+	//ragdoll stuff 
+	CRagdollWorld::Get().Shutdown();
 }
 
 
@@ -258,6 +262,10 @@ int DLLEXPORT HUD_VidInit( void )
 		g_Environment.RestoreWeather();
 	}
 
+	//ragdoll stuff 
+	CRagdollWorld::Get().NotifyMapChanged();
+	CRagdollWorld::Get().Init();
+
 	return 1;
 }
 
@@ -362,6 +370,18 @@ void DLLEXPORT HUD_Frame( double time )
 	}
 
 	GetClientVoice()->Frame( time );
+
+	//ragdoll stuff 
+	static float s_lastTime = 0;
+	float now = (float)gEngfuncs.GetClientTime();
+	float dt  = now - s_lastTime;
+	s_lastTime = now;
+
+	if (dt > 0.0f && dt < 0.5f)
+	{
+		CRagdollManager::Get().Update(dt);
+		//CRagdollManager::Get().PushFromPlayers();
+	}
 }
 
 

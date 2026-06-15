@@ -411,6 +411,26 @@ void DLLEXPORT HUD_TempEntUpdate (
 	if ( !*ppTempEntActive )		
 		return;
 
+	//ragdoll stuff 
+	int iExplode2 = gEngfuncs.pEventAPI->EV_FindModelIndex( "sprites/eexplo.spr" );
+	int iExplode3 = gEngfuncs.pEventAPI->EV_FindModelIndex( "sprites/fexplo.spr" );
+	int iExplode4 = gEngfuncs.pEventAPI->EV_FindModelIndex( "sprites/fexplo1.spr" );
+
+	pTemp = *ppTempEntActive;
+	while ( pTemp )
+	{
+		int mdl = pTemp->entity.curstate.modelindex;
+		if ( mdl == iExplode2 || mdl == iExplode3 || mdl == iExplode4 )
+		{
+			gHUD.m_lastExplosionOrigin[0] = pTemp->entity.origin[0];
+			gHUD.m_lastExplosionOrigin[1] = pTemp->entity.origin[1];
+			gHUD.m_lastExplosionOrigin[2] = pTemp->entity.origin[2];
+			gHUD.m_lastExplosionIsGrenade = true;
+			break;
+		}
+		pTemp = pTemp->next;
+	}
+
 	// in order to have tents collide with players, we have to run the player prediction code so
 	// that the client has the player list. We run this code once when we detect any COLLIDEALL 
 	// tent, then set this BOOL to true so the code doesn't get run again if there's more than

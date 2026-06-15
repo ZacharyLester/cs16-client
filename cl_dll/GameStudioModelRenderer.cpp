@@ -965,6 +965,25 @@ mstudioanim_t *CGameStudioModelRenderer::LookupAnimation(mstudioseqdesc_t *pseqd
 
 void CGameStudioModelRenderer::StudioSetupBones(void)
 {
+	//ragdoll stuff 
+	if (m_pCurrentEntity->player)
+	{
+		if (CRagdollManager::Get().HasRagdoll(m_nPlayerIndex))
+		{
+			if (CRagdollManager::Get().GetRagdollBones(m_nPlayerIndex, m_pStudioHeader, (*m_pbonetransform)))
+			{
+				for (int i = 0; i < m_pStudioHeader->numbones; i++)
+					MatrixCopy((*m_pbonetransform)[i], (*m_plighttransform)[i]);
+
+				(*m_protationmatrix)[0][3] = 0.0f;
+				(*m_protationmatrix)[1][3] = 0.0f;
+				(*m_protationmatrix)[2][3] = 0.0f;
+
+				return;
+			}
+		}
+	}
+
 	int i;
 	double f;
 
@@ -1684,6 +1703,16 @@ bool WeaponHasAttachments(entity_state_t *pplayer)
 	return (modelheader->numattachments != 0);
 }
 
+//ragdoll stuff
+struct PlayerRagdollState
+{
+	float lastAliveBones[128][3][4];
+	bool hasLastAliveBones;
+	int lastSequence;
+};
+static PlayerRagdollState s_playerState[33];
+
+
 int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplayer)
 {
 	m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
@@ -1807,6 +1836,60 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 	m_pPlayerInfo->renderframe = m_nFrameCount;
 	m_pPlayerInfo = NULL;
 
+	{//ragdoll stuff
+		int seq = m_pCurrentEntity->curstate.sequence;
+		float *hitOrigin = gHUD.m_ragdollHitOrigin[m_nPlayerIndex + 1];
+		float hitDir[3];
+		hitDir[0] = m_pCurrentEntity->curstate.origin[0] - hitOrigin[0];
+		hitDir[1] = m_pCurrentEntity->curstate.origin[1] - hitOrigin[1];
+		hitDir[2] = m_pCurrentEntity->curstate.origin[2] - hitOrigin[2];
+
+		//float impulseStrength = 50.0f;//2.0f;
+		int type = gHUD.m_ragdollHitType[m_nPlayerIndex + 1];
+		float impulseStrength = 2.5f;
+
+		if (type == 1)//grenade
+		impulseStrength = 5.0f;
+
+		float vel[3] = {
+		hitDir[0] * impulseStrength,
+		hitDir[1] * impulseStrength,
+		hitDir[2] * impulseStrength
+		};
+
+		bool isDying = IsDyingSequence(m_pStudioHeader, 
+		m_pCurrentEntity->curstate.sequence);
+
+		if (!isDying && !CRagdollManager::Get().		HasRagdoll(m_nPlayerIndex))
+		{
+			for (int i = 0; i < m_pStudioHeader->numbones; i++)
+			memcpy(s_playerState[m_nPlayerIndex].lastAliveBones[i],
+(*m_pbonetransform)[i], sizeof(float[3][4]));
+			s_playerState[m_nPlayerIndex].				hasLastAliveBones = true;
+		}
+
+		if (isDying && !CRagdollManager::Get().HasRagdoll(m_nPlayerIndex))
+		{
+			float (*bonesToUse)[3][4] = (*m_pbonetransform);
+
+			if (s_playerState[m_nPlayerIndex].hasLastAliveBones)
+			bonesToUse = s_playerState[m_nPlayerIndex].lastAliveBones;
+
+			CRagdollManager::Get().SpawnRagdoll(m_nPlayerIndex, m_pStudioHeader, bonesToUse, vel);
+		}
+
+		/*if (!isDying && CRagdollManager::Get().HasRagdoll(m_nPlayerIndex))
+			CRagdollManager::Get().RemoveRagdoll(m_nPlayerIndex);*/
+
+		if (!isDying && CRagdollManager::Get().HasRagdoll(m_nPlayerIndex))
+		{
+			float spawnTime = CRagdollManager::Get().GetRagdollSpawnTime(m_nPlayerIndex);
+
+			if (gEngfuncs.GetClientTime() - spawnTime > 2.0f)
+			CRagdollManager::Get().RemoveRagdoll(m_nPlayerIndex);
+		}
+	}
+
 	if (flags & STUDIO_EVENTS && (!(flags & STUDIO_RENDER) || !pplayer->weaponmodel || !WeaponHasAttachments(pplayer)))
 	{
 		StudioCalcAttachments();
@@ -1825,6 +1908,18 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		vec3_t dir;
 
 		lighting.plightvec = dir;
+
+		//ragdoll stuff lighting 
+		if (CRagdollManager::Get().HasRagdoll(m_nPlayerIndex))
+		{
+			Vector ragdollPos = CRagdollManager::Get().GetRagdollOrigin(m_nPlayerIndex);
+			if (ragdollPos != Vector(0, 0, 0))
+			{
+				m_pCurrentEntity->origin          = ragdollPos;
+				m_pCurrentEntity->curstate.origin = ragdollPos;
+			}
+		}
+
 
 		IEngineStudio.StudioDynamicLight(m_pCurrentEntity, &lighting);
 		IEngineStudio.StudioEntityLight(&lighting);

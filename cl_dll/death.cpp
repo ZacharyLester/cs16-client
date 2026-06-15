@@ -176,6 +176,30 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 	strlcpy( killedwith, "d_", sizeof( killedwith ) );
 	strlcat( killedwith, reader.ReadString(), sizeof( killedwith ) );
 
+//ragdoll stuff 
+	cl_entity_t *killerEnt = gEngfuncs.GetEntityByIndex( killer );
+	if ( killerEnt && victim >= 1 && victim <= 32 )
+	{
+		bool isGrenade = ( strstr( killedwith, "grenade" ) || strstr( killedwith, "rocket" ) || strstr( killedwith, "bomb" ) ||
+strstr( killedwith, "hegrenade" ));
+
+		if ( isGrenade && gHUD.m_lastExplosionIsGrenade )
+		{
+			gHUD.m_ragdollHitOrigin[victim][0] = gHUD.m_lastExplosionOrigin[0];
+			gHUD.m_ragdollHitOrigin[victim][1] = gHUD.m_lastExplosionOrigin[1];
+			gHUD.m_ragdollHitOrigin[victim][2] = gHUD.m_lastExplosionOrigin[2];
+			gHUD.m_ragdollHitType[victim] = 1;
+			gHUD.m_lastExplosionIsGrenade = false;
+		}
+		else
+		{
+			gHUD.m_ragdollHitOrigin[victim][0] = killerEnt->curstate.origin[0];
+			gHUD.m_ragdollHitOrigin[victim][1] = killerEnt->curstate.origin[1];
+			gHUD.m_ragdollHitOrigin[victim][2] = killerEnt->curstate.origin[2];
+			gHUD.m_ragdollHitType[victim] = 0;
+		}
+	}
+
 	//if (gViewPort)
 	//	gViewPort->DeathMsg( killer, victim );
 	gHUD.m_Scoreboard.DeathMsg( killer, victim );
