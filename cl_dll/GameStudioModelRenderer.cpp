@@ -1285,6 +1285,9 @@ int DLLEXPORT HUD_GetStudioModelInterface( int version, struct r_studio_interfac
 	// Initialize local variables, etc.
 	R_StudioInit();
 
+	//ragdoll stuff 
+	CRagdollWorld::Get().m_studioReady = true;
+
 	// Success
 	return 1;
 }

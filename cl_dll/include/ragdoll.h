@@ -82,6 +82,7 @@ public:
 	btDiscreteDynamicsWorld *GetWorld() { return m_world; }
 
 	void NotifyMapChanged();
+
 private:
 	btDefaultCollisionConfiguration	 *m_config = nullptr;
 	btCollisionDispatcher *m_dispatcher = nullptr;
@@ -93,6 +94,9 @@ private:
 	btCollisionShape	*m_worldShape = nullptr;
 	btRigidBody *m_worldBody = nullptr;
 	char m_currentMapName[256] = {};
+
+public:
+	bool m_studioReady = false;
 };
 
 class CRagdollManager

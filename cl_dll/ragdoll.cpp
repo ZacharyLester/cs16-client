@@ -136,8 +136,8 @@ void CRagdollWorld::Step(float dt)
 #endif
 
 void CRagdollWorld::EnsureWorldCollision()
-{	
-	if (!m_world)
+{
+	if (!m_world || !m_studioReady)
 	{
 		gEngfuncs.Con_Printf("ragdoll BSP: no world\n");
 		return;
