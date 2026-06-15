@@ -137,17 +137,28 @@ void CRagdollWorld::Step(float dt)
 #endif
 
 void CRagdollWorld::EnsureWorldCollision()
-{
-	if (!m_world) return;
+{	
+	if (!m_world)
+	{
+		gEngfuncs.Con_Printf("ragdoll BSP: no world\n");
+		return;
+	}
 
 	model_t *worldModel = IEngineStudio.GetModelByIndex(1);
 	if (!worldModel || worldModel->type != mod_brush)
+	{
+		gEngfuncs.Con_Printf("ragdoll BSP: no world model (model=%p type=%d)\n",
+			worldModel, worldModel ? worldModel->type : -1);
 		return;
+	}
 
 	const char *mapName = worldModel->name;
 
 	if (m_worldBody && strncmp(m_currentMapName, mapName, sizeof(m_currentMapName)) == 0)
+	{
+		gEngfuncs.Con_Printf("ragdoll BSP: already built for %s\n", mapName);
 		return;
+	}
 
 	if (m_worldBody)
 	{
