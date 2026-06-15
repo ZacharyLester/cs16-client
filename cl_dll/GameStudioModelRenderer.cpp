@@ -129,7 +129,10 @@ void CRagdollWorld::Init()
 
 	m_world->setGravity(btVector3(0, 0, -800.0f * GU_TO_M));
 
-	btGImpactCollisionAlgorithm::registerAlgorithm(m_dispatcher);
+	m_world->getSolverInfo().m_numIterations = 20;
+	m_world->getSolverInfo().m_erp = 0.8f;
+	m_world->getSolverInfo().m_erp2 = 0.8f;
+	m_world->getDispatchInfo().m_allowedCcdPenetration = 0.0001f;
 }
 
 void CRagdollWorld::NotifyMapChanged()
@@ -146,8 +149,6 @@ void CRagdollWorld::NotifyMapChanged()
 	m_currentMapName[0] = '\0';
 
 	CRagdollManager::Get().RemoveAllRagdolls();
-
-	Init();
 	EnsureWorldCollision();
 }
 
@@ -294,9 +295,8 @@ void CRagdollWorld::EnsureWorldCollision()
 		return;
 	}
 
-	btGImpactMeshShape *gimpact = new btGImpactMeshShape(m_worldMesh);
-	gimpact->updateBound();
-	m_worldShape = gimpact;
+	m_worldShape = new btBvhTriangleMeshShape(m_worldMesh, true);
+	m_worldShape->setMargin(0.5f * GU_TO_M);
 
 	btRigidBody::btRigidBodyConstructionInfo ci(
 		0,
@@ -513,21 +513,19 @@ void CRagdollManager::PushFromPlayers()
 
 static const int MAX_RAGDOLL_BONES = 128;
 
-void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bonetransform[][3][4], const float	*velocity)
+void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bonetransform[][3][4], const float *velocity)
 {
 	if (!hdr)
 		return;
 
 	CRagdollWorld::Get().Init();
-	//CRagdollWorld::Get().EnsureWorldCollision();
 	btDiscreteDynamicsWorld *world = CRagdollWorld::Get().GetWorld();
 
 	RemoveRagdoll(entityIndex);
 
-	Ragdoll &rd    = m_ragdolls[entityIndex];
-	rd.active      = true;
-
-	rd.deathTime   = gEngfuncs.GetClientTime();
+	Ragdoll &rd  = m_ragdolls[entityIndex];
+	rd.active    = true;
+	rd.deathTime = gEngfuncs.GetClientTime();
 	rd.spawnTime = gEngfuncs.GetClientTime();
 
 	mstudiobone_t *pbones = (mstudiobone_t *)((byte *)hdr + hdr->boneindex);
@@ -535,9 +533,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 	for (int i = 0; i < 128; i++)
 		rd.boneToSlot[i] = -1;
 
-	//pass 1 : find the studiohdr bone index for each rigid body slot
-	//strstr match so "Bip01 L Thigh" finds "Bip01 L Thigh" even on models
-	//that append suffixes like "_twist"
+	//pass 1: find bone indices for each slot
 	for (int slot = 0; slot < RB_COUNT; slot++)
 	{
 		rd.parts[slot].slot       = (ERagdollBody)slot;
@@ -559,9 +555,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		}
 	}
 
-	//pass 2: map every studiohdr bone to its nearest owning rigid body
-	//first mark bones that directly own a slot, then walk the parent chain for
-	//the rest so every bone ends up assigned to something
+	//pass 2: map every bone to its nearest owning rigid body slot
 	for (int b = 0; b < hdr->numbones && b < MAX_RAGDOLL_BONES; b++)
 	{
 		for (int slot = 0; slot < RB_COUNT; slot++)
@@ -576,7 +570,6 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		if (rd.boneToSlot[b] >= 0)
 			continue;
 
-		//not a direct owner, walk up until we find an ancestor that is
 		for (int cur = pbones[b].parent; cur != -1; cur = pbones[cur].parent)
 		{
 			for (int slot = 0; slot < RB_COUNT; slot++)
@@ -591,7 +584,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		next_bone:;
 	}
 
-	//pass 3: create body
+	//pass 3: create bodies but do NOT add to world yet
 	for (int slot = 0; slot < RB_COUNT; slot++)
 	{
 		const RagdollBoneDesc &desc = k_BoneDescs[slot];
@@ -610,6 +603,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 			desc.pboneoffset, halfH);
 
 		part.shape       = new btCapsuleShape(desc.radius * GU_TO_M, halfH * 2.0f);
+		part.shape->setMargin(0.1f * GU_TO_M);
 		part.motionState = new btDefaultMotionState(xform);
 
 		btVector3 inertia(0, 0, 0);
@@ -640,14 +634,11 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		part.body->setUserIndex(slot);
 		part.body->setSleepingThresholds(0.5f * GU_TO_M, 0.05f);
 		part.body->setDeactivationTime(0.3f);
-
-		world->addRigidBody(part.body, 2, 1);
+		part.body->setCcdMotionThreshold(1.0f * GU_TO_M);
+		part.body->setCcdSweptSphereRadius(desc.radius * GU_TO_M * 0.5f);
 	}
 
-	//pass 4: record each bone's fixed offset from its owning body
-	//at spawn time the bodies sit exactly on their bone origins, so the offset
-	//is just inv(bodyWorld) * boneWorld.  GetRagdollBones replays this each
-	//frame: boneWorld = bodyWorld * boneLocalToBody[b].
+	//pass 4: record bone local offsets from owning body
 	for (int b = 0; b < hdr->numbones && b < MAX_RAGDOLL_BONES; b++)
 	{
 		int slot = rd.boneToSlot[b];
@@ -659,23 +650,20 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 
 		btTransform boneWorld = BoneMatToBt(bonetransform[b]);
 		btTransform bodyWorld = rd.parts[slot].body->getWorldTransform();
-		btTransform local = bodyWorld.inverseTimes(boneWorld);
+		btTransform local     = bodyWorld.inverseTimes(boneWorld);
 
 		if (slot == RB_CALF_L || slot == RB_CALF_R)
 		{
 			btVector3 localOrigin = local.getOrigin();
-			if (localOrigin.y() < 0)  //negative Y = below capsule center
-				localOrigin.setY(localOrigin.y() * 0.5f); //reduce by half
+			if (localOrigin.y() < 0)
+				localOrigin.setY(localOrigin.y() * 0.5f);
 			local.setOrigin(localOrigin);
 		}
 
 		rd.boneLocalToBody[b] = local;
 	}
 
-	//pass 5: ground clamp
-	//trace downward from the pelvis to find the floor Z, then clamp all bodies
-	bool wasCrouching = false;
-
+	//pass 5: ground clamp before adding to world
 	{
 		btVector3 pelvisPos(0, 0, 0);
 		if (rd.parts[RB_PELVIS].body)
@@ -685,40 +673,28 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		float oy = pelvisPos.y() * M_TO_GU;
 		float oz = pelvisPos.z() * M_TO_GU;
 
+		bool wasCrouching = false;
 		cl_entity_t *ent = gEngfuncs.GetEntityByIndex(entityIndex);
-
 		if (ent)
 		{
 			float heightDiff = oz - ent->curstate.origin[2];
 			wasCrouching = (heightDiff < 30.0f);
 		}
 
-		float traceStartZ = wasCrouching ? oz + 36.0f : oz;
-		float traceStart[3] = { ox, oy, traceStartZ };
-		float traceEnd[3]   = { ox, oy, traceStartZ - 512.0f };
+		float traceStartZ    = wasCrouching ? oz + 36.0f : oz;
+		float traceStart[3]  = { ox, oy, traceStartZ };
+		float traceEnd[3]    = { ox, oy, traceStartZ - 512.0f };
 
 		pmtrace_t tr;
 		gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction(false, true);
 		gEngfuncs.pEventAPI->EV_PushPMStates();
-			gEngfuncs.pEventAPI->EV_SetSolidPlayers(-1);
-			gEngfuncs.pEventAPI->EV_SetTraceHull(2);
-
-		/*gEngfuncs.pEventAPI->EV_PlayerTrace(traceStart, traceEnd,
-			                                    PM_STUDIO_IGNORE | PM_GLASS_IGNORE,
-			                                    -1, &tr);*/
-//not really working..
-
+		gEngfuncs.pEventAPI->EV_SetSolidPlayers(-1);
+		gEngfuncs.pEventAPI->EV_SetTraceHull(2);
 		gEngfuncs.pEventAPI->EV_PlayerTrace(traceStart, traceEnd,
-		PM_STUDIO_IGNORE | PM_GLASS_IGNORE,
-		entityIndex,
-		&tr);
-
+			PM_STUDIO_IGNORE | PM_GLASS_IGNORE, entityIndex, &tr);
 		gEngfuncs.pEventAPI->EV_PopPMStates();
 
-		float floorZ = (!tr.startsolid && tr.fraction < 1.0f)
-		               ? tr.endpos[2]
-		               : oz - 36.0f;
-
+		float floorZ  = (!tr.startsolid && tr.fraction < 1.0f) ? tr.endpos[2] : oz - 36.0f;
 		float floorBt = floorZ * GU_TO_M;
 
 		for (int slot = 0; slot < RB_COUNT; slot++)
@@ -731,13 +707,10 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 			float hh = capsule->getHalfHeight();
 
 			btTransform xform = body->getWorldTransform();
-			btVector3 org = xform.getOrigin();
+			btVector3   org   = xform.getOrigin();
 
-			btVector3 localTop (0,  hh, 0);
-			btVector3 localBottom(0, -hh, 0);
-			btVector3 worldTop = xform * localTop;
-			btVector3 worldBottom = xform * localBottom;
-
+			btVector3 worldTop    = xform * btVector3(0,  hh, 0);
+			btVector3 worldBottom = xform * btVector3(0, -hh, 0);
 			float bottomZ = btMin(worldTop.z(), worldBottom.z()) - r;
 
 			if (bottomZ < floorBt)
@@ -752,48 +725,53 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 			if (vel.z() > 0) vel.setZ(0);
 			body->setLinearVelocity(vel);
 		}
-
 	}
 
-	//pass 6: joint constraints
+	//pass 6: now add all bodies to world after they are correctly positioned
+	for (int slot = 0; slot < RB_COUNT; slot++)
+	{
+		if (rd.parts[slot].body)
+			world->addRigidBody(rd.parts[slot].body, 2, 1);
+	}
+
+	//pass 7: constraints
 	BuildConstraints(rd, world);
 
 	world->performDiscreteCollisionDetection();
 
-	//pass 7: warmup simulation
+	//pass 8: death impulse
 	if (velocity && rd.parts[RB_SPINE1].body)
 	{
 		btVector3 hitDir(
-		velocity[0] * GU_TO_M * 5.0f,
-		velocity[1] * GU_TO_M * 5.0f,
-		velocity[2] * GU_TO_M * 5.0f
+			velocity[0] * GU_TO_M * 5.0f,
+			velocity[1] * GU_TO_M * 5.0f,
+			velocity[2] * GU_TO_M * 5.0f
 		);
-
 		rd.parts[RB_SPINE1].body->applyImpulse(hitDir, btVector3(0, 0, 0));
 	}
 
+	//pass 9: random angular velocity for natural tumble
 	srand(entityIndex ^ (int)(gEngfuncs.GetClientTime() * 1000));
 	for (int slot = 0; slot < RB_COUNT; slot++)
 	{
 		if (!rd.parts[slot].body) continue;
 
-		float dist = (rd.parts[slot].body->getWorldTransform().getOrigin() - rd.parts[RB_SPINE1].body->getWorldTransform().getOrigin()).length();
+		float dist  = (rd.parts[slot].body->getWorldTransform().getOrigin()
+		               - rd.parts[RB_SPINE1].body->getWorldTransform().getOrigin()).length();
 		float scale = 1.0f / (1.0f + dist * 5.0f);
 
-		btVector3 angVel(
-		((rand() % 200) - 100) * 0.01f * scale,
-		((rand() % 200) - 100) * 0.01f * scale,
-		((rand() % 200) - 100) * 0.01f * scale
-		);
-
-		rd.parts[slot].body->setAngularVelocity(angVel);
+		rd.parts[slot].body->setAngularVelocity(btVector3(
+			((rand() % 200) - 100) * 0.01f * scale,
+			((rand() % 200) - 100) * 0.01f * scale,
+			((rand() % 200) - 100) * 0.01f * scale
+		));
 	}
 
-	cl_entity_t *ent = gEngfuncs.GetEntityByIndex( entityIndex + 1 );
-	if ( ent )
+	cl_entity_t *ent = gEngfuncs.GetEntityByIndex(entityIndex + 1);
+	if (ent)
 	{
 		ent->curstate.colormap = 0;
-		memset( ent->curstate.controller, 0, sizeof( ent->curstate.controller ) );
+		memset(ent->curstate.controller, 0, sizeof(ent->curstate.controller));
 	}
 }
 
