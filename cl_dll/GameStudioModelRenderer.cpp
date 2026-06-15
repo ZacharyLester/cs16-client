@@ -168,9 +168,7 @@ void CRagdollWorld::Step(float dt)
 		return;
 
 	m_world->stepSimulation(dt, 4, 1.0f / 120.0f);
-}
-
-#ifndef SURF_PLANEBACK
+}#ifndef SURF_PLANEBACK
 #define SURF_PLANEBACK		0x02
 #endif
 #ifndef SURF_DRAWSKY
@@ -210,15 +208,13 @@ void CRagdollWorld::EnsureWorldCollision()
 
 	strncpy(m_currentMapName, mapName, sizeof(m_currentMapName) - 1);
 
+	if (!worldModel->surfaces || !worldModel->surfedges ||
+	    !worldModel->edges    || !worldModel->vertexes)
+		return;
+
 	m_worldMesh = new btTriangleMesh(true);
 
 	int triCount = 0;
-
-	gEngfuncs.pTriAPI->Begin(TRI_TRIANGLES);
-
-	gEngfuncs.pTriAPI->End();
-
-	hull_t *hull = &worldModel->hulls[0];
 
 	for (int i = 0; i < worldModel->numsurfaces; i++)
 	{
@@ -235,18 +231,30 @@ void CRagdollWorld::EnsureWorldCollision()
 
 		auto GetSurfVert = [&](int edge_index) -> float*
 		{
-			int e = worldModel->surfedges[firstedge + edge_index];
-			medge_t *edge = &worldModel->edges[e >= 0 ? e : -e];
-			int vertIndex = (e >= 0) ? edge->v[0] : edge->v[1];
-			return worldModel->vertexes[vertIndex].position;
+			int e    = worldModel->surfedges[firstedge + edge_index];
+			int eIdx = (e >= 0) ? e : -e;
+
+			if (eIdx >= worldModel->numedges)
+				return nullptr;
+
+			medge_t *edge    = &worldModel->edges[eIdx];
+			int      vertIdx = (e >= 0) ? edge->v[0] : edge->v[1];
+
+			if (vertIdx >= worldModel->numvertexes)
+				return nullptr;
+
+			return worldModel->vertexes[vertIdx].position;
 		};
 
 		float *v0 = GetSurfVert(0);
+		if (!v0) continue;
 
 		for (int j = 1; j < numedges - 1; j++)
 		{
 			float *v1 = GetSurfVert(j);
 			float *v2 = GetSurfVert(j + 1);
+
+			if (!v1 || !v2) continue;
 
 			btVector3 p0(v0[0] * GU_TO_M, v0[1] * GU_TO_M, v0[2] * GU_TO_M);
 			btVector3 p1(v1[0] * GU_TO_M, v1[1] * GU_TO_M, v1[2] * GU_TO_M);
