@@ -142,6 +142,9 @@ void CRagdollWorld::NotifyMapChanged()
 	m_currentMapName[0] = '\0';
 
 	CRagdollManager::Get().RemoveAllRagdolls();
+
+	Init();
+	EnsureWorldCollision();
 }
 
 void CRagdollWorld::Shutdown()
@@ -510,7 +513,7 @@ void CRagdollManager::SpawnRagdoll(int entityIndex, studiohdr_t *hdr, float bone
 		return;
 
 	CRagdollWorld::Get().Init();
-	CRagdollWorld::Get().EnsureWorldCollision();
+	//CRagdollWorld::Get().EnsureWorldCollision();
 	btDiscreteDynamicsWorld *world = CRagdollWorld::Get().GetWorld();
 
 	RemoveRagdoll(entityIndex);
